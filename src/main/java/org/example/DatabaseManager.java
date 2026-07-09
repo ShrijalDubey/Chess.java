@@ -68,10 +68,10 @@ public class DatabaseManager {
     public static String fetchProfileStats() {
         String statsQuery = "SELECT " +
                 "COUNT(*) as total, " +
-                "SUM(CASE WHEN winner = 'Player' THEN 1 ELSE 0 END) as p_wins, " +
-                "SUM(CASE WHEN winner = 'Bot' THEN 1 ELSE 0 END) as b_wins, " +
-                "SUM(CASE WHEN outcome = 'STALEMATE' THEN 1 ELSE 0 END) as draws, " +
-                "SUM(CASE WHEN winner = 'Player' AND outcome = 'CHECKMATE' THEN 1 ELSE 0 END) as cm_wins " +
+                "SUM(winner = 'Player') as p_wins, " +
+                "SUM(winner = 'Bot') as b_wins, " +
+                "SUM(outcome = 'STALEMATE') as draws, " +
+                "SUM(winner = 'Player' AND outcome = 'CHECKMATE') as cm_wins " +
                 "FROM games";
 
         try (Connection conn = getConnection();
@@ -93,12 +93,12 @@ public class DatabaseManager {
                 double pct = ((double) playerWins / totalGames) * 100;
                 double roundedPct = Math.round(pct * 10.0) / 10.0;
 
-                return "=== PLAYER PROFILE STATS ===\n\n" +
+                return "----- PLAYER PROFILE STATS -----\n\n" +
                         "Total Matches Played: " + totalGames + "\n" +
                         "Your Total Wins: " + playerWins + "\n" +
                         "Bot Wins: " + botWins + "\n" +
                         "Stalemates / Draws: " + totalDraws + "\n\n" +
-                        "--- Performance Metrics ---\n" +
+                        "----- Performance Metrics -----\n" +
                         "Wins : " + mateWins + "\n" +
                         "Overall Win Rate: " + roundedPct + "%";
             }

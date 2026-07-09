@@ -16,31 +16,20 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
-import java.util.*;
+import java.util.Objects;
 
 public class JavaFXChess extends Application {
 
     static final int TILE_SIZE = 75;
     static final int MODE_PVP = 0;
     static final int MODE_BOT = 1;
-    static int enPassantCol = -1;
 
-    Piece[][] board = new Piece[8][8];
+    ChessLogic engine = new ChessLogic();
     StackPane[][] visualTiles = new StackPane[8][8];
-    boolean isWhiteTurn = true;
-    boolean gameOver = false;
-    int gameMode = MODE_PVP;
-    List<String> movesList = new ArrayList<>();
 
-    int whiteScore = 0;
-    int blackScore = 0;
-
-    int lastFromRow = -1;
-    int lastFromCol = -1;
-    int lastToRow = -1;
-    int lastToCol = -1;
-    int selectedRow = -1;
-    int selectedCol = -1;
+    int lastFromRow = -1, lastFromCol = -1;
+    int lastToRow = -1, lastToCol = -1;
+    int selectedRow = -1, selectedCol = -1;
 
     BorderPane rootLayout;
     GridPane chessGrid = new GridPane();
@@ -54,6 +43,7 @@ public class JavaFXChess extends Application {
         launch(args);
     }
 
+    @Override
     public void start(Stage stage) {
         rootLayout = new BorderPane();
         rootLayout.setStyle("-fx-background-color: #1e1e1e;");
@@ -68,7 +58,7 @@ public class JavaFXChess extends Application {
     }
 
     void showMainMenu() {
-        gameOver = false;
+        engine.gameOver = false;
         VBox menuBox = new VBox(25);
         menuBox.setAlignment(Pos.CENTER);
 
@@ -82,7 +72,7 @@ public class JavaFXChess extends Application {
 
         pvpBtn.setOnAction(e -> startNewGame(MODE_PVP));
         botBtn.setOnAction(e -> startNewGame(MODE_BOT));
-        profileBtn.setOnAction(e -> showProfileModal()); // Links to the modal pop-up
+        profileBtn.setOnAction(e -> showProfileModal());
 
         menuBox.getChildren().addAll(title, pvpBtn, botBtn, profileBtn);
         rootLayout.setCenter(menuBox);
@@ -132,21 +122,19 @@ public class JavaFXChess extends Application {
     }
 
     void startNewGame(int mode) {
-        gameMode = mode;
-        gameOver = false;
-        isWhiteTurn = true;
-        selectedRow = -1;
-        selectedCol = -1;
-        lastFromRow = -1;
-        lastFromCol = -1;
-        lastToRow = -1;
-        lastToCol = -1;
-        enPassantCol = -1;
-        whiteScore = 39;
-        blackScore = 39;
-        movesList.clear();
+        engine.gameMode = mode;
+        engine.gameOver = false;
+        engine.isWhiteTurn = true;
+        selectedRow = -1; selectedCol = -1;
+        lastFromRow = -1; lastFromCol = -1;
+        lastToRow = -1; lastToCol = -1;
+        ChessLogic.enPassantCol = -1;
+        engine.whiteScore = 39;
+        engine.blackScore = 39;
+        engine.movesList.clear();
         notationContainer.getChildren().clear();
         controlsContainer.getChildren().clear();
+
         VBox sidebar = new VBox(15);
         sidebar.setStyle("-fx-background-color: #151515; -fx-padding: 20px; -fx-min-width: 350px; -fx-border-color: #2d2d2d; -fx-border-width: 0 0 0 2px;");
         sidebar.setAlignment(Pos.TOP_CENTER);
@@ -161,71 +149,53 @@ public class JavaFXChess extends Application {
         Button menuBtn = new Button("Return to Main Menu");
         menuBtn.setStyle("-fx-background-color: #c33737; -fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 310px; -fx-padding: 10px; -fx-background-radius: 4px; -fx-cursor: hand;");
         menuBtn.setOnAction(e -> showMainMenu());
+
         notationScrollPane = new ScrollPane(notationContainer);
         notationScrollPane.setFitToWidth(true);
         notationScrollPane.setStyle("-fx-background: #1e1e1e; -fx-border-color: #2d2d2d;");
         notationScrollPane.setPrefHeight(300);
+
         sidebar.getChildren().addAll(statusLabel, scoreLabel, notationScrollPane, controlsContainer, menuBtn);
         rootLayout.setRight(sidebar);
         rootLayout.setCenter(chessGrid);
-        initializeStandardBoard();
+
+        engine.initializeStandardBoard();
         statusLabel.setText("White to Move");
         buildGraphicBoard();
     }
 
     void updateScoreDisplay() {
-        scoreLabel.setText(String.format("Material — White: %d  |  Black: %d", whiteScore, blackScore));
-    }
-
-    void calculateLiveScores() {
-        int whiteMaterial = 0;
-        int blackMaterial = 0;
-        for (int r = 0; r < 8; r++) {
-            for (int c = 0; c < 8; c++) {
-                Piece p = board[r][c];
-                if (p != null) {
-                    if (p.isWhite) {
-                        whiteMaterial += p.getValue();
-                    } else {
-                        blackMaterial += p.getValue();
-                    }
-                }
-            }
-        }
-        whiteScore = whiteMaterial;
-        blackScore = blackMaterial;
-        updateScoreDisplay();
+        scoreLabel.setText(String.format("Material — White: %d  |  Black: %d", engine.whiteScore, engine.blackScore));
     }
 
     void buildGraphicBoard() {
         chessGrid.getChildren().clear();
-        boolean whiteInCheck = isInCheck(true, board);
-        boolean blackInCheck = isInCheck(false, board);
+        boolean whiteInCheck = engine.isInCheck(true, engine.board);
+        boolean blackInCheck = engine.isInCheck(false, engine.board);
+
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
                 StackPane tile = new StackPane();
                 Rectangle square = new Rectangle(TILE_SIZE, TILE_SIZE);
-
                 Color baseColor = (row + col) % 2 == 0 ? Color.web("#eeeed2") : Color.web("#739552");
 
                 if ((row == lastFromRow && col == lastFromCol) || (row == lastToRow && col == lastToCol)) {
                     baseColor = Color.web("#f7f48b");
                 }
-                if (board[row][col] instanceof King) {
-                    if ((board[row][col].isWhite && whiteInCheck) || (!board[row][col].isWhite && blackInCheck)) {
+                if (engine.board[row][col] instanceof Piece.King) {
+                    if ((engine.board[row][col].isWhite && whiteInCheck) || (!engine.board[row][col].isWhite && blackInCheck)) {
                         baseColor = Color.web("#e05353");
                     }
                 }
                 square.setFill(baseColor);
                 tile.getChildren().add(square);
 
-                String emoji = board[row][col] != null ? board[row][col].getEmoji() : "";
+                String emoji = engine.board[row][col] != null ? engine.board[row][col].getEmoji() : "";
                 Label pieceLabel = new Label(emoji);
-
                 pieceLabel.setFont(new Font("Arial", 52));
 
-                if (board[row][col] != null) {
-                    if (board[row][col].isWhite) {
+                if (engine.board[row][col] != null) {
+                    if (engine.board[row][col].isWhite) {
                         pieceLabel.setTextFill(Color.web("#ffffff"));
                         pieceLabel.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(61, 61, 61, 0.85), 2, 0.9, 0, 0);");
                     } else {
@@ -242,12 +212,13 @@ public class JavaFXChess extends Application {
                 chessGrid.add(tile, col, row);
             }
         }
+
         if (selectedRow != -1 && selectedCol != -1) {
-            Piece currentPiece = board[selectedRow][selectedCol];
+            Piece currentPiece = engine.board[selectedRow][selectedCol];
             for (int row = 0; row < 8; row++) {
                 for (int col = 0; col < 8; col++) {
-                    if (currentPiece.isValidMove(selectedRow, selectedCol, row, col, board)) {
-                        if (willMoveResolveCheck(selectedRow, selectedCol, row, col, isWhiteTurn)) {
+                    if (currentPiece.isValidMove(selectedRow, selectedCol, row, col, engine.board)) {
+                        if (engine.willMoveResolveCheck(selectedRow, selectedCol, row, col, engine.isWhiteTurn)) {
                             Circle dot = new Circle(9, Color.web("#3d3d3d", 0.45));
                             visualTiles[row][col].getChildren().add(dot);
                         }
@@ -258,14 +229,10 @@ public class JavaFXChess extends Application {
     }
 
     void handleTileClick(int row, int col) {
-        if (gameOver) {
-            return;
-        }
-        if (gameMode == MODE_BOT && !isWhiteTurn) {
-            return;
-        }
+        if (engine.gameOver || (engine.gameMode == MODE_BOT && !engine.isWhiteTurn)) return;
+
         if (selectedRow == -1) {
-            if (board[row][col] != null && board[row][col].isWhite == isWhiteTurn) {
+            if (engine.board[row][col] != null && engine.board[row][col].isWhite == engine.isWhiteTurn) {
                 selectedRow = row;
                 selectedCol = col;
                 buildGraphicBoard();
@@ -277,21 +244,26 @@ public class JavaFXChess extends Application {
             int fromRow = selectedRow;
             int fromCol = selectedCol;
             selectedRow = -1;
+
             if (fromRow == row && fromCol == col) {
                 buildGraphicBoard();
                 return;
             }
-            if (board[fromRow][fromCol].isValidMove(fromRow, fromCol, row, col, board)) {
-                if (willMoveResolveCheck(fromRow, fromCol, row, col, isWhiteTurn)) {
-                    recordAndLogMove(fromRow, fromCol, row, col);
-                    calculateLiveScores();
-                    isWhiteTurn = !isWhiteTurn;
+            if (engine.board[fromRow][fromCol].isValidMove(fromRow, fromCol, row, col, engine.board)) {
+                if (engine.willMoveResolveCheck(fromRow, fromCol, row, col, engine.isWhiteTurn)) {
+                    engine.recordAndLogMove(fromRow, fromCol, row, col);
+                    lastFromRow = fromRow; lastFromCol = fromCol;
+                    lastToRow = row; lastToCol = col;
+
+                    engine.calculateLiveScores();
+                    engine.isWhiteTurn = !engine.isWhiteTurn;
                     postMoveEvaluation();
-                    if (gameMode == MODE_BOT && !isWhiteTurn && !gameOver) {
+
+                    if (engine.gameMode == MODE_BOT && !engine.isWhiteTurn && !engine.gameOver) {
                         PauseTransition pause = new PauseTransition(Duration.millis(500));
                         pause.setOnFinished(e -> {
-                            executeBotLogicAlgorithm();
-                            calculateLiveScores();
+                            executeBotAction();
+                            engine.calculateLiveScores();
                         });
                         pause.play();
                     }
@@ -303,18 +275,32 @@ public class JavaFXChess extends Application {
         }
     }
 
+    void executeBotAction() {
+        int[] choice = engine.getBotMove();
+        if (choice == null) {
+            postMoveEvaluation();
+            return;
+        }
+        engine.recordAndLogMove(choice[0], choice[1], choice[2], choice[3]);
+        lastFromRow = choice[0]; lastFromCol = choice[1];
+        lastToRow = choice[2]; lastToCol = choice[3];
+
+        engine.isWhiteTurn = true;
+        postMoveEvaluation();
+    }
+
     void updateLiveNotationUI() {
         notationContainer.getChildren().clear();
-        for (int i = 0; i < movesList.size(); i += 2) {
+        for (int i = 0; i < engine.movesList.size(); i += 2) {
             HBox row = new HBox(20);
             row.setPadding(new Insets(3, 8, 3, 8));
             Label numLabel = new Label((i / 2 + 1) + ".");
             numLabel.setTextFill(Color.GRAY);
             numLabel.setPrefWidth(30);
-            Label whiteLabel = new Label(movesList.get(i));
+            Label whiteLabel = new Label(engine.movesList.get(i));
             whiteLabel.setTextFill(Color.web("#eeeed2"));
             whiteLabel.setPrefWidth(80);
-            String blackMove = i + 1 < movesList.size() ? movesList.get(i + 1) : "";
+            String blackMove = i + 1 < engine.movesList.size() ? engine.movesList.get(i + 1) : "";
             Label blackLabel = new Label(blackMove);
             blackLabel.setTextFill(Color.web("#eeeed2"));
             row.getChildren().addAll(numLabel, whiteLabel, blackLabel);
@@ -327,144 +313,23 @@ public class JavaFXChess extends Application {
         controlsContainer.getChildren().clear();
         Button btn = new Button("Launch New Match");
         btn.setStyle("-fx-background-color: #bacb46; -fx-text-fill: #151515; -fx-font-weight: bold; -fx-min-width: 310px; -fx-padding: 10px; -fx-cursor: hand;");
-        btn.setOnAction(e -> startNewGame(gameMode));
+        btn.setOnAction(e -> startNewGame(engine.gameMode));
         controlsContainer.getChildren().add(btn);
     }
 
-    void executeBotLogicAlgorithm() {
-        List<int[]> moves = new ArrayList<>();
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                if (board[row][col] != null && !board[row][col].isWhite) {
-                    for (int tr = 0; tr < 8; tr++) {
-                        for (int tc = 0; tc < 8; tc++) {
-                            if (board[row][col].isValidMove(row, col, tr, tc, board)) {
-                                if (willMoveResolveCheck(row, col, tr, tc, false)) {
-                                    moves.add(new int[]{row, col, tr, tc});
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (moves.isEmpty()) {
-            postMoveEvaluation();
-            return;
-        }
-        int maxVal = -100;
-        for (int[] m : moves) {
-            int val = board[m[2]][m[3]] != null ? board[m[2]][m[3]].getValue() : -1;
-            if (val > maxVal) {
-                maxVal = val;
-            }
-        }
-        List<int[]> bestMoves = new ArrayList<>();
-        for (int[] m : moves) {
-            int val = board[m[2]][m[3]] != null ? board[m[2]][m[3]].getValue() : -1;
-            if (val == maxVal) {
-                bestMoves.add(m);
-            }
-        }
-        Random rand = new Random();
-        int[] choice = bestMoves.get(rand.nextInt(bestMoves.size()));
-        recordAndLogMove(choice[0], choice[1], choice[2], choice[3]);
-        isWhiteTurn = true;
-        postMoveEvaluation();
-    }
-
-    void initializeStandardBoard() {
-        for (int row = 0; row < 8; row++) {
-            Arrays.fill(board[row], null);
-        }
-        board[0][0] = new Rook(false);
-        board[0][1] = new Knight(false);
-        board[0][2] = new Bishop(false);
-        board[0][3] = new Queen(false);
-        board[0][4] = new King(false);
-        board[0][5] = new Bishop(false);
-        board[0][6] = new Knight(false);
-        board[0][7] = new Rook(false);
-        for (int i = 0; i < 8; i++) {
-            board[1][i] = new Pawn(false);
-        }
-        for (int i = 0; i < 8; i++) {
-            board[6][i] = new Pawn(true);
-        }
-        board[7][0] = new Rook(true);
-        board[7][1] = new Knight(true);
-        board[7][2] = new Bishop(true);
-        board[7][3] = new Queen(true);
-        board[7][4] = new King(true);
-        board[7][5] = new Bishop(true);
-        board[7][6] = new Knight(true);
-        board[7][7] = new Rook(true);
-    }
-
-    void recordAndLogMove(int fromRow, int fromCol, int toRow, int toCol) {
-        Piece piece = board[fromRow][fromCol];
-        boolean capture = (board[toRow][toCol] != null);
-        String note = "";
-        if (piece instanceof Pawn) {
-            if (capture) {
-                note += String.valueOf((char) ('a' + fromCol));
-            }
-        } else {
-            note += piece.getNotationLetter();
-        }
-        if (piece instanceof King && Math.abs(fromCol - toCol) == 2) {
-            int rookSrcCol = toCol == 6 ? 7 : 0;
-            int rookDestCol = toCol == 6 ? 5 : 3;
-            board[fromRow][rookDestCol] = board[fromRow][rookSrcCol];
-            board[fromRow][rookSrcCol] = null;
-            if (board[fromRow][rookDestCol] != null) {
-                board[fromRow][rookDestCol].hasMoved = true;
-            }
-            note = toCol == 6 ? "O-O" : "O-O-O";
-        } else if (piece instanceof Pawn && fromCol != toCol && board[toRow][toCol] == null) {
-            board[fromRow][toCol] = null;
-            capture = true;
-            note += "x" + (char) ('a' + toCol) + (8 - toRow) + " e.p.";
-        }
-        if (!note.startsWith("O-O")) {
-            if (capture) {
-                note += "x";
-            }
-            note += (char) ('a' + toCol) + String.valueOf(8 - toRow);
-        }
-        board[toRow][toCol] = piece;
-        board[fromRow][fromCol] = null;
-        piece.hasMoved = true;
-        if (piece instanceof Pawn && Math.abs(fromRow - toRow) == 2) {
-            enPassantCol = toCol;
-        } else {
-            enPassantCol = -1;
-        }
-        if (piece instanceof Pawn && (toRow == 0 || toRow == 7)) {
-            board[toRow][toCol] = new Queen(piece.isWhite);
-            note += "=Q";
-        }
-        if (isInCheck(!piece.isWhite, board)) {
-            note += hasNoLegalMoves(!piece.isWhite) ? "#" : "+";
-        }
-        movesList.add(note);
-        lastFromRow = fromRow;
-        lastFromCol = fromCol;
-        lastToRow = toRow;
-        lastToCol = toCol;
+    void postMoveEvaluation() {
         updateLiveNotationUI();
         buildGraphicBoard();
-    }
+        updateScoreDisplay();
 
-    void postMoveEvaluation() {
-        if (hasNoLegalMoves(isWhiteTurn)) {
-            gameOver = true;
-            String outcomeType; // "CHECKMATE" or "STALEMATE"
-            String winnerSide;  // "White", "Black", or "Draw"
+        if (engine.hasNoLegalMoves(engine.isWhiteTurn)) {
+            engine.gameOver = true;
+            String outcomeType;
+            String winnerSide;
 
-            if (isInCheck(isWhiteTurn, board)) {
+            if (engine.isInCheck(engine.isWhiteTurn, engine.board)) {
                 outcomeType = "CHECKMATE";
-                winnerSide = isWhiteTurn ? "Black" : "White";
+                winnerSide = engine.isWhiteTurn ? "Black" : "White";
                 statusLabel.setText("CHECKMATE! " + winnerSide + " wins.");
             } else {
                 outcomeType = "STALEMATE";
@@ -474,331 +339,17 @@ public class JavaFXChess extends Application {
 
             enableEndGameLayout();
 
-            String modeStr = (gameMode == MODE_BOT) ? "Player vs Bot" : "Player vs Player";
-
-            String dbWinnerValue = winnerSide;
-            if (gameMode == MODE_BOT && !winnerSide.equals("Draw")) {
-                dbWinnerValue = winnerSide.equals("White") ? "Player" : "Bot";
+            if (engine.gameMode == MODE_BOT) {
+                String modeStr = "Player vs Bot";
+                String dbWinnerValue = winnerSide;
+                if (!winnerSide.equals("Draw")) {
+                    dbWinnerValue = winnerSide.equals("White") ? "Player" : "Bot";
+                }
+                DatabaseManager.saveGame(modeStr, engine.whiteScore, engine.blackScore, outcomeType, dbWinnerValue, engine.movesList);
             }
-
-            DatabaseManager.saveGame(modeStr, whiteScore, blackScore, outcomeType, dbWinnerValue, movesList);
 
         } else {
-            statusLabel.setText(isWhiteTurn ? "White's Turn" : "Black's Turn");
-        }
-    }
-
-    boolean isInCheck(boolean whiteSide, Piece[][] b) {
-        int kingRow = -1;
-        int kingCol = -1;
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                if (b[row][col] instanceof King && b[row][col].isWhite == whiteSide) {
-                    kingRow = row;
-                    kingCol = col;
-                }
-            }
-        }
-        if (kingRow == -1) {
-            return false;
-        }
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                if (b[row][col] != null && b[row][col].isWhite != whiteSide) {
-                    if (b[row][col].isValidMove(row, col, kingRow, kingCol, b)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    boolean willMoveResolveCheck(int fromRow, int fromCol, int toRow, int toCol, boolean whiteSide) {
-        Piece[][] temp = new Piece[8][8];
-        for (int i = 0; i < 8; i++) {
-            System.arraycopy(board[i], 0, temp[i], 0, 8);
-        }
-        if (temp[fromRow][fromCol] instanceof Pawn && fromCol != toCol && temp[toRow][toCol] == null) {
-            temp[fromRow][toCol] = null;
-        }
-        temp[toRow][toCol] = temp[fromRow][fromCol];
-        temp[fromRow][fromCol] = null;
-        return !isInCheck(whiteSide, temp);
-    }
-
-    boolean hasNoLegalMoves(boolean whiteSide) {
-        for (int row = 0; row < 8; row++) {
-            for (int col = 0; col < 8; col++) {
-                if (board[row][col] != null && board[row][col].isWhite == whiteSide) {
-                    for (int tr = 0; tr < 8; tr++) {
-                        for (int tc = 0; tc < 8; tc++) {
-                            if (board[row][col].isValidMove(row, col, tr, tc, board)) {
-                                if (willMoveResolveCheck(row, col, tr, tc, whiteSide)) {
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    static boolean isPathClear(int startRow, int startCol, int targetRow, int targetCol, Piece[][] b) {
-        int stepRow = Integer.compare(targetRow, startRow);
-        int stepCol = Integer.compare(targetCol, startCol);
-        int row = startRow + stepRow;
-        int col = startCol + stepCol;
-        while (row != targetRow || col != targetCol) {
-            if (b[row][col] != null) {
-                return false;
-            }
-            row += stepRow;
-            col += stepCol;
-        }
-        return true;
-    }
-
-    static abstract class Piece {
-        boolean isWhite;
-        boolean hasMoved = false;
-
-        Piece(boolean w) {
-            isWhite = w;
-        }
-
-        abstract boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b);
-        abstract String getEmoji();
-        abstract String getNotationLetter();
-        abstract int getValue();
-        abstract Piece clonePiece();
-
-        boolean basicCheck(int toRow, int toCol, Piece[][] b) {
-            return b[toRow][toCol] == null || b[toRow][toCol].isWhite != isWhite;
-        }
-    }
-
-    static class Pawn extends Piece {
-        Pawn(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            if (!basicCheck(toRow, toCol, b)) {
-                return false;
-            }
-            int dir = isWhite ? -1 : 1;
-            int start = isWhite ? 6 : 1;
-            if (fromCol == toCol && toRow == fromRow + dir && b[toRow][toCol] == null) {
-                return true;
-            }
-            if (fromCol == toCol && fromRow == start && toRow == fromRow + 2 * dir) {
-                if (b[fromRow + dir][toCol] == null && b[toRow][toCol] == null) {
-                    return true;
-                }
-            }
-            if (Math.abs(fromCol - toCol) == 1 && toRow == fromRow + dir && b[toRow][toCol] != null) {
-                return true;
-            }
-            if (Math.abs(fromCol - toCol) == 1 && toRow == fromRow + dir && b[toRow][toCol] == null) {
-                return enPassantCol == toCol && fromRow == (isWhite ? 3 : 4);
-            }
-            return false;
-        }
-
-        String getEmoji() {
-            return isWhite ? "♙" : "♟";
-        }
-
-        String getNotationLetter() {
-            return "";
-        }
-
-        int getValue() {
-            return 1;
-        }
-
-        Piece clonePiece() {
-            Pawn p = new Pawn(isWhite);
-            p.hasMoved = hasMoved;
-            return p;
-        }
-    }
-
-    static class Rook extends Piece {
-        Rook(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            boolean passBasic = basicCheck(toRow, toCol, b);
-            boolean inline = (fromRow == toRow || fromCol == toCol);
-            if (passBasic && inline) {
-                return isPathClear(fromRow, fromCol, toRow, toCol, b);
-            }
-            return false;
-        }
-
-        String getEmoji() {
-            return isWhite ? "♖" : "♜";
-        }
-
-        String getNotationLetter() {
-            return "R";
-        }
-
-        int getValue() {
-            return 5;
-        }
-
-        Piece clonePiece() {
-            Rook r = new Rook(isWhite);
-            r.hasMoved = hasMoved;
-            return r;
-        }
-    }
-
-    static class Knight extends Piece {
-        Knight(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            if (!basicCheck(toRow, toCol, b)) {
-                return false;
-            }
-            int dR = Math.abs(fromRow - toRow);
-            int dC = Math.abs(fromCol - toCol);
-            return (dR == 2 && dC == 1) || (dR == 1 && dC == 2);
-        }
-
-        String getEmoji() {
-            return isWhite ? "♘" : "♞";
-        }
-
-        String getNotationLetter() {
-            return "N";
-        }
-
-        int getValue() {
-            return 3;
-        }
-
-        Piece clonePiece() {
-            Knight k = new Knight(isWhite);
-            k.hasMoved = hasMoved;
-            return k;
-        }
-    }
-
-    static class Bishop extends Piece {
-        Bishop(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            boolean passBasic = basicCheck(toRow, toCol, b);
-            boolean diagonal = Math.abs(fromRow - toRow) == Math.abs(fromCol - toCol);
-            if (passBasic && diagonal) {
-                return isPathClear(fromRow, fromCol, toRow, toCol, b);
-            }
-            return false;
-        }
-
-        String getEmoji() {
-            return isWhite ? "♗" : "♝";
-        }
-
-        String getNotationLetter() {
-            return "B";
-        }
-
-        int getValue() {
-            return 3;
-        }
-
-        Piece clonePiece() {
-            Bishop b = new Bishop(isWhite);
-            b.hasMoved = hasMoved;
-            return b;
-        }
-    }
-
-    static class Queen extends Piece {
-        Queen(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            if (!basicCheck(toRow, toCol, b)) {
-                return false;
-            }
-            boolean diagonal = Math.abs(fromRow - toRow) == Math.abs(fromCol - toCol);
-            boolean straight = fromRow == toRow || fromCol == toCol;
-            if (diagonal || straight) {
-                return isPathClear(fromRow, fromCol, toRow, toCol, b);
-            }
-            return false;
-        }
-
-        String getEmoji() {
-            return isWhite ? "♕" : "♛";
-        }
-
-        String getNotationLetter() {
-            return "Q";
-        }
-
-        int getValue() {
-            return 9;
-        }
-
-        Piece clonePiece() {
-            Queen q = new Queen(isWhite);
-            q.hasMoved = hasMoved;
-            return q;
-        }
-    }
-
-    static class King extends Piece {
-        King(boolean w) {
-            super(w);
-        }
-
-        boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
-            if (!basicCheck(toRow, toCol, b)) {
-                return false;
-            }
-            if (Math.abs(fromRow - toRow) <= 1 && Math.abs(fromCol - toCol) <= 1) {
-                return true;
-            }
-            if (!hasMoved && fromRow == toRow && Math.abs(fromCol - toCol) == 2) {
-                int rookCol = toCol == 6 ? 7 : 0;
-                if (b[fromRow][rookCol] instanceof Rook && !b[fromRow][rookCol].hasMoved) {
-                    return isPathClear(fromRow, fromCol, fromRow, rookCol, b);
-                }
-            }
-            return false;
-        }
-
-        String getEmoji() {
-            return isWhite ? "♔" : "♚";
-        }
-
-        String getNotationLetter() {
-            return "K";
-        }
-
-        int getValue() {
-            return 0;
-        }
-
-        Piece clonePiece() {
-            King k = new King(isWhite);
-            k.hasMoved = hasMoved;
-            return k;
+            statusLabel.setText(engine.isWhiteTurn ? "White's Turn" : "Black's Turn");
         }
     }
 }
