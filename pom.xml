@@ -2,7 +2,7 @@
     <dependency>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-controls</artifactId>
-        <version>21</version> <!-- Change to match your JDK version -->
+        <version>21</version>
         <groupId>com.mysql</groupId>
         <artifactId>mysql-connector-j</artifactId>
         <version>9.0.0</version>

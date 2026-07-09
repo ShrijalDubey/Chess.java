@@ -32,7 +32,6 @@ public class JavaFXChess extends Application {
     int gameMode = MODE_PVP;
     List<String> movesList = new ArrayList<>();
 
-    // Material Scores
     int whiteScore = 0;
     int blackScore = 0;
 
@@ -103,7 +102,7 @@ public class JavaFXChess extends Application {
         String statisticsText = DatabaseManager.fetchProfileStats();
 
         Label statsLabel = new Label(statisticsText);
-        statsLabel.setFont(new Font("Consolas", 14)); // Monospaced font aligns rows cleanly
+        statsLabel.setFont(new Font("Consolas", 14));
         statsLabel.setTextFill(Color.web("#eeeed2"));
         statsLabel.setWrapText(true);
 
@@ -117,7 +116,7 @@ public class JavaFXChess extends Application {
 
         Scene popupScene = new Scene(container, 380, 320);
         popupStage.setScene(popupScene);
-        popupStage.initModality(javafx.stage.Modality.APPLICATION_MODAL); // Freeze application background interaction
+        popupStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
         popupStage.showAndWait();
     }
 
