@@ -22,7 +22,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (!basicCheck(toRow, toCol, b)) {
                 return false;
@@ -55,17 +54,14 @@ public abstract class Piece {
             return false;
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♙" : "♟";
         }
 
-        @Override
         public String getNotationLetter() {
             return "";
         }
 
-        @Override
         public int getValue() {
             return 1;
         }
@@ -76,7 +72,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (basicCheck(toRow, toCol, b) && (fromRow == toRow || fromCol == toCol)) {
                 return ChessLogic.isPathClear(fromRow, fromCol, toRow, toCol, b);
@@ -84,17 +79,14 @@ public abstract class Piece {
             return false;
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♖" : "♜";
         }
 
-        @Override
         public String getNotationLetter() {
             return "R";
         }
 
-        @Override
         public int getValue() {
             return 5;
         }
@@ -105,7 +97,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (!basicCheck(toRow, toCol, b)) {
                 return false;
@@ -117,17 +108,14 @@ public abstract class Piece {
             return (dR == 2 && dC == 1) || (dR == 1 && dC == 2);
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♘" : "♞";
         }
 
-        @Override
         public String getNotationLetter() {
             return "N";
         }
 
-        @Override
         public int getValue() {
             return 3;
         }
@@ -138,7 +126,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (basicCheck(toRow, toCol, b) && Math.abs(fromRow - toRow) == Math.abs(fromCol - toCol)) {
                 return ChessLogic.isPathClear(fromRow, fromCol, toRow, toCol, b);
@@ -146,17 +133,14 @@ public abstract class Piece {
             return false;
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♗" : "♝";
         }
 
-        @Override
         public String getNotationLetter() {
             return "B";
         }
 
-        @Override
         public int getValue() {
             return 3;
         }
@@ -167,7 +151,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (!basicCheck(toRow, toCol, b)) {
                 return false;
@@ -183,17 +166,14 @@ public abstract class Piece {
             return false;
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♕" : "♛";
         }
 
-        @Override
         public String getNotationLetter() {
             return "Q";
         }
 
-        @Override
         public int getValue() {
             return 9;
         }
@@ -204,7 +184,6 @@ public abstract class Piece {
             super(w);
         }
 
-        @Override
         public boolean isValidMove(int fromRow, int fromCol, int toRow, int toCol, Piece[][] b) {
             if (!basicCheck(toRow, toCol, b)) {
                 return false;
@@ -226,17 +205,14 @@ public abstract class Piece {
             return false;
         }
 
-        @Override
         public String getEmoji() {
             return isWhite ? "♔" : "♚";
         }
 
-        @Override
         public String getNotationLetter() {
             return "K";
         }
 
-        @Override
         public int getValue() {
             return 0;
         }
