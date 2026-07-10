@@ -104,6 +104,9 @@ public class ChessLogic {
         movesList.add(note);
     }
 
+
+
+    //Bots logic
     public int[] getBotMove() {
         List<int[]> moves = new ArrayList<>();
         for (int row = 0; row < 8; row++) {
